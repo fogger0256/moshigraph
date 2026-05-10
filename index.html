@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>模試graph ver.1.5</title>
+<title>模試グラフ　ver.1.6</title>
 <style>
+    /* 変数の定義（デフォルトはダークモード） */
     :root {
         --bg-color: #0b0f19;
         --text-color: #ffffff;
@@ -13,8 +14,11 @@
         --grid-line: #334;
         --delete-color: #ea4335;
         --total-bar-color: #666;
+        /* エラーバーの色変数を追加：ダークモード用 */
+        --error-bar-color: rgba(255, 255, 255, 0.8); /* 白強め、不透明度80% */
     }
 
+    /* ライトモード用の変数定義 */
     [data-theme="light"] {
         --bg-color: #ffffff;
         --text-color: #000000;
@@ -23,6 +27,8 @@
         --grid-line: #ddd;
         --delete-color: #d93025;
         --total-bar-color: #999;
+        /* エラーバーの色変数を追加：ライトモード用 */
+        --error-bar-color: rgba(0, 0, 0, 0.8); /* 黒強め、不透明度80% */
     }
 
     body {
@@ -194,43 +200,41 @@
     .bar-area { flex-grow: 1; height: 100%; position: relative; }
     
     .bar {
-        position: absolute;
-        top: 0; left: 0;
+        position: relative;
         height: 100%;
-        z-index: 1; /* エラーバーより下に配置 */
         transition: width 0.7s cubic-bezier(0.1, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        box-sizing: border-box;
     }
 
-    /* エラーバー（中間層） */
+    /* エラーバー：垂直中央配置、太さを2px、色は変数に追従 */
     .error-bar {
         position: absolute;
         height: 2px;
+        background-color: var(--error-bar-color);
         top: 50%;
         transform: translateY(-50%);
-        z-index: 2; /* バーより上、数字より下 */
+        z-index: 2;
         pointer-events: none;
     }
     .error-cap {
         position: absolute;
         width: 2px;
         height: 12px;
+        background-color: var(--error-bar-color);
         top: -5px;
-        background-color: inherit;
     }
 
-    /* 数字（最前面層） */
+    /* 棒の先端の数字テキスト */
     .bar-text {
-        position: absolute;
-        right: 8px;
-        top: 0;
-        height: 100%;
-        display: flex;
-        align-items: center;
         color: #fff;
         font-size: 0.85rem;
-        z-index: 3; /* エラーバーより上に配置 */
+        font-weight: bold;
+        z-index: 3;
         text-shadow: 0px 0px 3px rgba(0,0,0,0.5);
-        pointer-events: none;
     }
 
     /* 合計行の全体横線 */
@@ -245,7 +249,9 @@
         z-index: 4;
     }
 
-    .total-row { margin-top: 30px; }
+    .total-row {
+        margin-top: 30px; /* 横線のスペース確保 */
+    }
     .total-row .bar-text {
         color: var(--text-color) !important;
         text-shadow: none;
@@ -339,22 +345,6 @@
         if (row) row.remove();
     }
 
-    // HEXカラーに白色を混ぜるヘルパー関数
-    function mixColorWithWhite(hexColor, mixRatio = 0.5) {
-        // HEXをRGBに変換
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
-
-        // 白色（255, 255, 255）と混ぜ合わせる
-        const mixedR = Math.round(r * mixRatio + 255 * (1 - mixRatio));
-        const mixedG = Math.round(g * mixRatio + 255 * (1 - mixRatio));
-        const mixedB = Math.round(b * mixRatio + 255 * (1 - mixRatio));
-
-        // RGBA（透明度50%）を返す
-        return `rgba(${mixedR}, ${mixedG}, ${mixedB}, 0.5)`;
-    }
-
     function createGraph() {
         const isPred = document.getElementById('prediction-checkbox').checked;
         const graphRowsContainer = document.getElementById('graph-rows');
@@ -401,13 +391,7 @@
                 if (isPred) {
                     const minP = getPer(val.min);
                     const maxP = getPer(val.max);
-                    // 色見直しの実装：ヘルパー関数を使用して色を計算
-                    const errorBarColor = mixColorWithWhite(color, 0.7); // 70%教科色、30%白色
-                    errorHtml = `
-                        <div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%; background-color: ${errorBarColor};">
-                            <div class="error-cap" style="left: 0; background-color: inherit;"></div>
-                            <div class="error-cap" style="right: 0; background-color: inherit;"></div>
-                        </div>`;
+                    errorHtml = `<div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%;"><div class="error-cap" style="left: 0;"></div><div class="error-cap" style="right: 0;"></div></div>`;
                 }
 
                 rowEl.innerHTML = `
@@ -420,9 +404,10 @@
                         </div>
                     </div>
                     <div class="bar-area">
-                        <div class="bar" style="width: 0%; background-color: ${color};"></div>
                         ${errorHtml}
-                        <div class="bar-text" style="width: ${getPer(activeScore)}%;">${activeScore}</div>
+                        <div class="bar" style="width: 0%; background-color: ${color};">
+                            <span class="bar-text">${activeScore}</span>
+                        </div>
                     </div>`;
                 graphRowsContainer.appendChild(rowEl);
                 setTimeout(() => rowEl.querySelector('.bar').style.width = `${getPer(activeScore)}%`, 100);
@@ -430,6 +415,7 @@
         });
 
         if (hasData) {
+            // 合計行の作成
             const getTotalPer = (v) => Math.min((v / total.full) * 100, 100);
             
             const divider = document.createElement('div');
@@ -443,14 +429,7 @@
             if (isPred) {
                 const minP = getTotalPer(total.min);
                 const maxP = getTotalPer(total.max);
-                // 合計行のエラーバーにも同様の色見直しを適用
-                const totalBarColor = getComputedStyle(document.documentElement).getPropertyValue('--total-bar-color').trim();
-                const errorBarColor = mixColorWithWhite(totalBarColor, 0.6); // 60%合計色、40%白色
-                totalErrorHtml = `
-                    <div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%; background-color: ${errorBarColor};">
-                        <div class="error-cap" style="left: 0; background-color: inherit;"></div>
-                        <div class="error-cap" style="right: 0; background-color: inherit;"></div>
-                    </div>`;
+                totalErrorHtml = `<div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%;"><div class="error-cap" style="left: 0;"></div><div class="error-cap" style="right: 0;"></div></div>`;
             }
 
             totalRow.innerHTML = `
@@ -463,9 +442,10 @@
                     </div>
                 </div>
                 <div class="bar-area">
-                    <div class="bar" style="width: 0%; background-color: var(--total-bar-color);"></div>
                     ${totalErrorHtml}
-                    <div class="bar-text" style="width: ${getTotalPer(total.med)}%;">${total.med}</div>
+                    <div class="bar" style="width: 0%; background-color: var(--total-bar-color);">
+                        <span class="bar-text">${total.med}</span>
+                    </div>
                 </div>`;
             graphRowsContainer.appendChild(totalRow);
             setTimeout(() => totalRow.querySelector('.bar').style.width = `${getTotalPer(total.med)}%`, 150);
