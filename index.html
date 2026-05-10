@@ -229,13 +229,31 @@
     }
 
     /* 棒の先端の数字テキスト */
-    .bar-text {
-        color: #fff;
-        font-size: 0.85rem;
-        font-weight: bold;
-        z-index: 3;
-        text-shadow: 0px 0px 3px rgba(0,0,0,0.5);
-    }
+  /* 数字を棒の先端に固定し、スタイルを統一 */
+.bar-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* 棒の右端に寄せる */
+    padding-right: 8px;
+    box-sizing: border-box;
+    color: #fff !important; /* 合計も含め白文字に統一 */
+    font-size: 0.85rem;
+    font-weight: bold;
+    z-index: 3;
+    text-shadow: 0px 0px 3px rgba(0,0,0,0.5); /* 視認性確保の影 */
+    pointer-events: none;
+}
+
+/* 合計行の文字色オーバーライドを削除して統一 */
+.total-row .bar-text {
+    color: #fff !important;
+    text-shadow: 0px 0px 3px rgba(0,0,0,0.5);
+}
+
 
     /* 合計行の全体横線 */
     .total-divider {
@@ -432,21 +450,24 @@
                 totalErrorHtml = `<div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%;"><div class="error-cap" style="left: 0;"></div><div class="error-cap" style="right: 0;"></div></div>`;
             }
 
-            totalRow.innerHTML = `
-                <div class="row-labels">
-                    <div class="label-color-bar" style="background-color: var(--total-bar-color);"></div>
-                    <div class="label-name" style="font-weight: bold;">合計</div>
-                    <div class="label-score-box">
-                        <span class="label-score">${total.med}</span>
-                        <span class="label-max">/${total.full}</span>
-                    </div>
-                </div>
-                <div class="bar-area">
-                    ${totalErrorHtml}
-                    <div class="bar" style="width: 0%; background-color: var(--total-bar-color);">
-                        <span class="bar-text">${total.med}</span>
-                    </div>
-                </div>`;
+
+            const totalPer = getTotalPer(total.med); // 中央値のパーセントを取得
+
+totalRow.innerHTML = `
+    <div class="row-labels">
+        <div class="label-color-bar" style="background-color: var(--total-bar-color);"></div>
+        <div class="label-name" style="font-weight: bold;">合計</div>
+        <div class="label-score-box">
+            <span class="label-score">${total.med}</span>
+            <span class="label-max">/${total.full}</span>
+        </div>
+    </div>
+    <div class="bar-area">
+        <div class="bar" style="width: 0%; background-color: var(--total-bar-color); z-index: 1;"></div>
+        ${totalErrorHtml}
+        <div class="bar-text" style="width: ${totalPer}%;">${total.med}</div>
+    </div>`;
+
             graphRowsContainer.appendChild(totalRow);
             setTimeout(() => totalRow.querySelector('.bar').style.width = `${getTotalPer(total.med)}%`, 150);
 
