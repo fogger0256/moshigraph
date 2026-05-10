@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>模試グラフ　V1.3</title>
+<title>模試グラフ　Ver.1.4</title>
 <style>
     :root {
         --bg-color: #0b0f19;
@@ -13,7 +13,6 @@
         --grid-line: #334;
         --delete-color: #ea4335;
         --total-bar-color: #666;
-        --error-bar-color: #ffffff;
     }
 
     [data-theme="light"] {
@@ -24,7 +23,6 @@
         --grid-line: #ddd;
         --delete-color: #d93025;
         --total-bar-color: #999;
-        --error-bar-color: #000000;
     }
 
     body {
@@ -122,7 +120,7 @@
     .input-field.score { width: 60px; }
     .input-field.max { width: 60px; }
     
-    /* 予想モード入力欄 */
+    /* 予想モード入力欄（幅を約半分に） */
     .input-field.score-min, 
     .input-field.score-med, 
     .input-field.score-max { width: 45px; }
@@ -151,14 +149,14 @@
     .display-section {
         margin-top: 60px;
         padding-top: 40px;
-        padding-bottom: 500px; /* スクショ用余白 */
+        padding-bottom: 500px; 
     }
 
     .graph-title { text-align: center; margin-bottom: 50px; font-size: 1.5rem; }
 
     .graph-wrapper {
         position: relative;
-        margin-left: 180px; /* ラベルエリア確保 */
+        margin-left: 180px; 
     }
 
     .graph-container {
@@ -193,48 +191,63 @@
     .label-score { font-size: 1.3rem; font-weight: bold; margin-right: 4px; }
     .label-max { font-size: 0.75rem; color: #888; }
 
-    .bar-area { flex-grow: 1; height: 100%; position: relative; z-index: 1; }
+    .bar-area { flex-grow: 1; height: 100%; position: relative; }
+    
     .bar {
-        height: 100%; display: flex; align-items: center; justify-content: flex-end;
-        padding-right: 8px; box-sizing: border-box; color: #fff; font-size: 0.85rem;
+        position: absolute;
+        top: 0; left: 0;
+        height: 100%;
+        z-index: 1; /* エラーバーより下に配置 */
         transition: width 0.7s cubic-bezier(0.1, 0, 0.2, 1);
-        text-shadow: 0px 0px 3px rgba(0,0,0,0.5);
     }
 
-    /* エラーバー（垂直中央配置） */
+    /* エラーバー（中間層） */
     .error-bar {
         position: absolute;
         height: 2px;
-        background-color: var(--error-bar-color);
         top: 50%;
         transform: translateY(-50%);
-        z-index: 2;
+        z-index: 2; /* バーより上、数字より下 */
         pointer-events: none;
+        opacity: 0.5; /* 透明度50% */
     }
     .error-cap {
         position: absolute;
         width: 2px;
-        height: 10px;
-        background-color: var(--error-bar-color);
-        top: -4px;
+        height: 12px;
+        background-color: inherit; /* 親の背景色を引き継ぐ */
+        top: -5px;
+    }
+
+    /* 数字（最前面層） */
+    .bar-text {
+        position: absolute;
+        right: 8px;
+        top: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        color: #fff;
+        font-size: 0.85rem;
+        z-index: 3; /* エラーバーより上に配置 */
+        text-shadow: 0px 0px 3px rgba(0,0,0,0.5);
+        pointer-events: none;
     }
 
     /* 合計行の全体横線 */
     .total-divider {
         position: absolute;
-        left: -180px; /* ラベルエリアの左端から */
-        right: 0;     /* グラフの右端まで */
+        left: -180px;
+        right: 0;    
         height: 2px;
         background-color: var(--text-color);
         margin-top: 5px;
         margin-bottom: 15px;
-        z-index: 3;
+        z-index: 4;
     }
 
-    .total-row {
-        margin-top: 30px; /* 横線のスペース確保 */
-    }
-    .total-row .bar {
+    .total-row { margin-top: 30px; }
+    .total-row .bar-text {
         color: var(--text-color) !important;
         text-shadow: none;
         font-weight: bold;
@@ -373,7 +386,12 @@
                 if (isPred) {
                     const minP = getPer(val.min);
                     const maxP = getPer(val.max);
-                    errorHtml = `<div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%;"><div class="error-cap" style="left: 0;"></div><div class="error-cap" style="right: 0;"></div></div>`;
+                    // エラーバーの色を教科の色に設定
+                    errorHtml = `
+                        <div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%; background-color: ${color};">
+                            <div class="error-cap" style="left: 0;"></div>
+                            <div class="error-cap" style="right: 0;"></div>
+                        </div>`;
                 }
 
                 rowEl.innerHTML = `
@@ -386,8 +404,9 @@
                         </div>
                     </div>
                     <div class="bar-area">
+                        <div class="bar" style="width: 0%; background-color: ${color};"></div>
                         ${errorHtml}
-                        <div class="bar" style="width: 0%; background-color: ${color};">${activeScore}</div>
+                        <div class="bar-text" style="width: ${getPer(activeScore)}%;">${activeScore}</div>
                     </div>`;
                 graphRowsContainer.appendChild(rowEl);
                 setTimeout(() => rowEl.querySelector('.bar').style.width = `${getPer(activeScore)}%`, 100);
@@ -395,9 +414,7 @@
         });
 
         if (hasData) {
-            // 合計行の作成
             const getTotalPer = (v) => Math.min((v / total.full) * 100, 100);
-            
             const divider = document.createElement('div');
             divider.className = 'total-divider';
             graphRowsContainer.appendChild(divider);
@@ -406,10 +423,15 @@
             totalRow.className = 'graph-row total-row';
             
             let totalErrorHtml = '';
+            const totalColor = getComputedStyle(document.documentElement).getPropertyValue('--total-bar-color').trim();
             if (isPred) {
                 const minP = getTotalPer(total.min);
                 const maxP = getTotalPer(total.max);
-                totalErrorHtml = `<div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%;"><div class="error-cap" style="left: 0;"></div><div class="error-cap" style="right: 0;"></div></div>`;
+                totalErrorHtml = `
+                    <div class="error-bar" style="left: ${minP}%; width: ${maxP - minP}%; background-color: ${totalColor};">
+                        <div class="error-cap" style="left: 0;"></div>
+                        <div class="error-cap" style="right: 0;"></div>
+                    </div>`;
             }
 
             totalRow.innerHTML = `
@@ -422,8 +444,9 @@
                     </div>
                 </div>
                 <div class="bar-area">
+                    <div class="bar" style="width: 0%; background-color: var(--total-bar-color);"></div>
                     ${totalErrorHtml}
-                    <div class="bar" style="width: 0%; background-color: var(--total-bar-color);">${total.med}</div>
+                    <div class="bar-text" style="width: ${getTotalPer(total.med)}%;">${total.med}</div>
                 </div>`;
             graphRowsContainer.appendChild(totalRow);
             setTimeout(() => totalRow.querySelector('.bar').style.width = `${getTotalPer(total.med)}%`, 150);
@@ -433,7 +456,6 @@
         }
     }
 
-    // 初期行
     for(let i=0; i<3; i++) addRow();
 </script>
 
